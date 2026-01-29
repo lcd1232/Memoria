@@ -432,6 +432,9 @@ namespace Memoria.Launcher
             }
             if (downloadCatalogClient != null && downloadCatalogClient.IsBusy)
                 downloadCatalogClient.CancelAsync();
+
+            // Dispose gamepad service
+            _gamepadService?.Dispose();
         }
 
 

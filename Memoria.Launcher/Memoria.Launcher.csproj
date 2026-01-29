@@ -109,6 +109,7 @@
     <Compile Include="Launcher\Window_ChangeLog.xaml.cs">
       <DependentUpon>Window_ChangeLog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Launcher\GamepadService.cs" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="App.xaml">
@@ -274,6 +275,12 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="SharpCompress" Version="0.40.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Memoria.XInputDotNetPure\Memoria.XInputDotNetPure.csproj">
+      <Project>{952700CD-A384-43A4-AC4B-52256F83836E}</Project>
+      <Name>Memoria.XInputDotNetPure</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="AfterResolveReferences">
