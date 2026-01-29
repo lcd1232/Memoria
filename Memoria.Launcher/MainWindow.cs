@@ -55,10 +55,9 @@ namespace Memoria.Launcher
             LoadSettings();
             KeyUp += ModManagerWindow_KeyUp;
 
-            // Initialize gamepad support
+            // Initialize gamepad support (started in OnLoaded after window is fully initialized)
             _gamepadService = new GamepadService(this);
             _gamepadService.StartPressed += OnGamepadStartPressed;
-            _gamepadService.Start();
         }
 
         private void OnGamepadStartPressed(object sender, EventArgs e)
@@ -72,6 +71,9 @@ namespace Memoria.Launcher
 
         private async void OnLoaded(Object sender, RoutedEventArgs e)
         {
+            // Start gamepad input polling now that window is fully initialized
+            _gamepadService?.Start();
+
             try
             {
                 if (Directory.Exists(Mod.INSTALLATION_TMP))

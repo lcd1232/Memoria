@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -17,7 +18,7 @@ namespace Memoria.Launcher
         private readonly Window _window;
         private readonly DispatcherTimer _pollTimer;
         private GamePadState _previousState;
-        private bool _disposed;
+        private volatile bool _disposed;
 
         // Thumbstick deadzone and repeat settings
         private const float ThumbstickDeadzone = 0.5f;
@@ -29,6 +30,7 @@ namespace Memoria.Launcher
         private DateTime _lastLeftTime = DateTime.MinValue;
         private DateTime _lastRightTime = DateTime.MinValue;
         private bool _upHeld, _downHeld, _leftHeld, _rightHeld;
+        private bool _initialDelayPassedUp, _initialDelayPassedDown, _initialDelayPassedLeft, _initialDelayPassedRight;
 
         /// <summary>
         /// Event raised when the Start button is pressed (to launch the game).
@@ -50,7 +52,14 @@ namespace Memoria.Launcher
             _pollTimer.Tick += PollGamepad;
 
             // Get initial state
-            _previousState = GamePad.GetState(PlayerIndex.One);
+            try
+            {
+                _previousState = GamePad.GetState(PlayerIndex.One);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GamepadService: Failed to get initial state: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -74,6 +83,9 @@ namespace Memoria.Launcher
 
         private void PollGamepad(object sender, EventArgs e)
         {
+            if (_disposed)
+                return;
+
             try
             {
                 var state = GamePad.GetState(PlayerIndex.One);
@@ -95,9 +107,10 @@ namespace Memoria.Launcher
 
                 _previousState = state;
             }
-            catch
+            catch (Exception ex)
             {
-                // Silently handle any gamepad errors to prevent crashes
+                // Log gamepad errors for debugging but don't crash
+                Debug.WriteLine($"GamepadService: Error polling gamepad: {ex.Message}");
             }
         }
 
@@ -159,19 +172,28 @@ namespace Memoria.Launcher
                     NavigateUp();
                     _lastUpTime = now;
                     _upHeld = true;
+                    _initialDelayPassedUp = false;
                 }
-                else if ((now - _lastUpTime).TotalMilliseconds > RepeatDelayMs)
+                else
                 {
-                    if ((now - _lastUpTime).TotalMilliseconds > RepeatDelayMs + RepeatRateMs)
+                    var elapsed = (now - _lastUpTime).TotalMilliseconds;
+                    if (!_initialDelayPassedUp && elapsed > RepeatDelayMs)
                     {
                         NavigateUp();
-                        _lastUpTime = now.AddMilliseconds(-RepeatDelayMs);
+                        _lastUpTime = now;
+                        _initialDelayPassedUp = true;
+                    }
+                    else if (_initialDelayPassedUp && elapsed > RepeatRateMs)
+                    {
+                        NavigateUp();
+                        _lastUpTime = now;
                     }
                 }
             }
             else
             {
                 _upHeld = false;
+                _initialDelayPassedUp = false;
             }
 
             // Handle Down
@@ -182,19 +204,28 @@ namespace Memoria.Launcher
                     NavigateDown();
                     _lastDownTime = now;
                     _downHeld = true;
+                    _initialDelayPassedDown = false;
                 }
-                else if ((now - _lastDownTime).TotalMilliseconds > RepeatDelayMs)
+                else
                 {
-                    if ((now - _lastDownTime).TotalMilliseconds > RepeatDelayMs + RepeatRateMs)
+                    var elapsed = (now - _lastDownTime).TotalMilliseconds;
+                    if (!_initialDelayPassedDown && elapsed > RepeatDelayMs)
                     {
                         NavigateDown();
-                        _lastDownTime = now.AddMilliseconds(-RepeatDelayMs);
+                        _lastDownTime = now;
+                        _initialDelayPassedDown = true;
+                    }
+                    else if (_initialDelayPassedDown && elapsed > RepeatRateMs)
+                    {
+                        NavigateDown();
+                        _lastDownTime = now;
                     }
                 }
             }
             else
             {
                 _downHeld = false;
+                _initialDelayPassedDown = false;
             }
 
             // Handle Left
@@ -205,19 +236,28 @@ namespace Memoria.Launcher
                     NavigateLeft();
                     _lastLeftTime = now;
                     _leftHeld = true;
+                    _initialDelayPassedLeft = false;
                 }
-                else if ((now - _lastLeftTime).TotalMilliseconds > RepeatDelayMs)
+                else
                 {
-                    if ((now - _lastLeftTime).TotalMilliseconds > RepeatDelayMs + RepeatRateMs)
+                    var elapsed = (now - _lastLeftTime).TotalMilliseconds;
+                    if (!_initialDelayPassedLeft && elapsed > RepeatDelayMs)
                     {
                         NavigateLeft();
-                        _lastLeftTime = now.AddMilliseconds(-RepeatDelayMs);
+                        _lastLeftTime = now;
+                        _initialDelayPassedLeft = true;
+                    }
+                    else if (_initialDelayPassedLeft && elapsed > RepeatRateMs)
+                    {
+                        NavigateLeft();
+                        _lastLeftTime = now;
                     }
                 }
             }
             else
             {
                 _leftHeld = false;
+                _initialDelayPassedLeft = false;
             }
 
             // Handle Right
@@ -228,19 +268,28 @@ namespace Memoria.Launcher
                     NavigateRight();
                     _lastRightTime = now;
                     _rightHeld = true;
+                    _initialDelayPassedRight = false;
                 }
-                else if ((now - _lastRightTime).TotalMilliseconds > RepeatDelayMs)
+                else
                 {
-                    if ((now - _lastRightTime).TotalMilliseconds > RepeatDelayMs + RepeatRateMs)
+                    var elapsed = (now - _lastRightTime).TotalMilliseconds;
+                    if (!_initialDelayPassedRight && elapsed > RepeatDelayMs)
                     {
                         NavigateRight();
-                        _lastRightTime = now.AddMilliseconds(-RepeatDelayMs);
+                        _lastRightTime = now;
+                        _initialDelayPassedRight = true;
+                    }
+                    else if (_initialDelayPassedRight && elapsed > RepeatRateMs)
+                    {
+                        NavigateRight();
+                        _lastRightTime = now;
                     }
                 }
             }
             else
             {
                 _rightHeld = false;
+                _initialDelayPassedRight = false;
             }
         }
 
@@ -313,8 +362,10 @@ namespace Memoria.Launcher
                 if (newIndex >= 0 && newIndex < comboBox.Items.Count)
                 {
                     comboBox.SelectedIndex = newIndex;
+                    return true;
                 }
-                return true;
+                // Return false when at bounds to allow focus navigation
+                return false;
             }
             return false;
         }
@@ -328,9 +379,15 @@ namespace Memoria.Launcher
                 if (newIndex >= 0 && newIndex < listView.Items.Count)
                 {
                     listView.SelectedIndex = newIndex;
-                    listView.ScrollIntoView(listView.SelectedItem);
+                    var selectedItem = listView.SelectedItem;
+                    if (selectedItem != null)
+                    {
+                        listView.ScrollIntoView(selectedItem);
+                    }
+                    return true;
                 }
-                return true;
+                // Return false when at bounds to allow focus navigation
+                return false;
             }
             return false;
         }
@@ -380,13 +437,13 @@ namespace Memoria.Launcher
             }
             else if (focused is CheckBox checkBox)
             {
-                // Toggle the checkbox
-                checkBox.IsChecked = !checkBox.IsChecked;
+                // Toggle the checkbox - handle nullable bool properly
+                checkBox.IsChecked = checkBox.IsChecked != true;
             }
             else if (focused is ToggleButton toggleButton)
             {
-                // Toggle the toggle button
-                toggleButton.IsChecked = !toggleButton.IsChecked;
+                // Toggle the toggle button - handle nullable bool properly
+                toggleButton.IsChecked = toggleButton.IsChecked != true;
             }
             else if (focused is ComboBox comboBox)
             {
@@ -415,9 +472,13 @@ namespace Memoria.Launcher
             if (target == null)
                 target = _window;
 
+            var presentationSource = PresentationSource.FromVisual(_window as Visual);
+            if (presentationSource == null)
+                return;
+
             var keyEventArgs = new KeyEventArgs(
                 Keyboard.PrimaryDevice,
-                PresentationSource.FromVisual(_window as Visual),
+                presentationSource,
                 0,
                 key)
             {
