@@ -70,6 +70,12 @@ namespace Memoria.Launcher
                 Debug.WriteLine($"GamepadService: XInput not available (native DLL missing): {ex.Message}");
                 _xinputAvailable = false;
             }
+            catch (BadImageFormatException ex)
+            {
+                // Architecture mismatch (32-bit vs 64-bit) - gamepad support will be disabled
+                Debug.WriteLine($"GamepadService: XInput not available (architecture mismatch - ensure XInputInterface.dll matches launcher architecture): {ex.Message}");
+                _xinputAvailable = false;
+            }
             catch (Exception ex)
             {
                 Debug.WriteLine($"GamepadService: Failed to initialize XInput: {ex.Message}");
@@ -128,6 +134,13 @@ namespace Memoria.Launcher
                 _xinputAvailable = false;
                 _pollTimer.Stop();
                 Debug.WriteLine("GamepadService: XInput DLL not found, disabling gamepad support");
+            }
+            catch (BadImageFormatException)
+            {
+                // Architecture mismatch - disable gamepad support
+                _xinputAvailable = false;
+                _pollTimer.Stop();
+                Debug.WriteLine("GamepadService: Architecture mismatch, disabling gamepad support");
             }
             catch (Exception ex)
             {
