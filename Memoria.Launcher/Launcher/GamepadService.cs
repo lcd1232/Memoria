@@ -20,6 +20,7 @@ namespace Memoria.Launcher
         private readonly DispatcherTimer _pollTimer;
         private GamePadState _previousState;
         private volatile bool _disposed;
+        private bool _xinputAvailable;
 
         // Thumbstick deadzone and repeat settings
         private const float ThumbstickDeadzone = 0.5f;
@@ -39,6 +40,11 @@ namespace Memoria.Launcher
         public event EventHandler StartPressed;
 
         /// <summary>
+        /// Gets whether XInput is available and gamepad support is enabled.
+        /// </summary>
+        public bool IsAvailable => _xinputAvailable;
+
+        /// <summary>
         /// Creates a new GamepadService for the specified window.
         /// </summary>
         /// <param name="window">The window to provide gamepad navigation for.</param>
@@ -52,14 +58,22 @@ namespace Memoria.Launcher
             };
             _pollTimer.Tick += PollGamepad;
 
-            // Get initial state
+            // Try to initialize XInput - it may not be available if native DLLs are missing
             try
             {
                 _previousState = GamePad.GetState(PlayerIndex.One);
+                _xinputAvailable = true;
+            }
+            catch (DllNotFoundException ex)
+            {
+                // XInput native DLL not found - gamepad support will be disabled
+                Debug.WriteLine($"GamepadService: XInput not available (native DLL missing): {ex.Message}");
+                _xinputAvailable = false;
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"GamepadService: Failed to get initial state: {ex.Message}");
+                Debug.WriteLine($"GamepadService: Failed to initialize XInput: {ex.Message}");
+                _xinputAvailable = false;
             }
         }
 
@@ -68,7 +82,7 @@ namespace Memoria.Launcher
         /// </summary>
         public void Start()
         {
-            if (!_disposed)
+            if (!_disposed && _xinputAvailable)
             {
                 _pollTimer.Start();
             }
@@ -84,7 +98,7 @@ namespace Memoria.Launcher
 
         private void PollGamepad(object sender, EventArgs e)
         {
-            if (_disposed)
+            if (_disposed || !_xinputAvailable)
                 return;
 
             try
@@ -107,6 +121,13 @@ namespace Memoria.Launcher
                 HandleNavigation(state);
 
                 _previousState = state;
+            }
+            catch (DllNotFoundException)
+            {
+                // XInput DLL became unavailable - disable gamepad support
+                _xinputAvailable = false;
+                _pollTimer.Stop();
+                Debug.WriteLine("GamepadService: XInput DLL not found, disabling gamepad support");
             }
             catch (Exception ex)
             {
