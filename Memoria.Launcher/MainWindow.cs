@@ -24,6 +24,7 @@ namespace Memoria.Launcher
     {
         //public ModManagerWindow ModdingWindow;
         public static DateTime MemoriaAssemblyCompileDate;
+        private GamepadService _gamepadService;
 
         public MainWindow()
         {
@@ -53,6 +54,16 @@ namespace Memoria.Launcher
             Closing += new CancelEventHandler(OnClosing);
             LoadSettings();
             KeyUp += ModManagerWindow_KeyUp;
+
+            // Initialize gamepad support (started in OnLoaded after window is fully initialized)
+            _gamepadService = new GamepadService(this);
+            _gamepadService.StartPressed += OnGamepadStartPressed;
+        }
+
+        private void OnGamepadStartPressed(object sender, EventArgs e)
+        {
+            // Launch the game when Start button is pressed on gamepad
+            PlayButton.Click();
         }
 
         public static readonly Color DefaultAccentColor = (Color)ColorConverter.ConvertFromString("#CC427599"); // CC355566
@@ -60,6 +71,9 @@ namespace Memoria.Launcher
 
         private async void OnLoaded(Object sender, RoutedEventArgs e)
         {
+            // Start gamepad input polling now that window is fully initialized
+            _gamepadService?.Start();
+
             try
             {
                 if (Directory.Exists(Mod.INSTALLATION_TMP))
